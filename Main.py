@@ -14,14 +14,15 @@ import urllib.request
 import xmltodict
 
 from Corpus import Corpus
-from Document import Document
+from Document import Document, ArxivDocument, HackerNewsDocument
+from DocumentGenerator import   DocumentGenerator
 
 THEME = "climate"
 FICHIER_CORPUS = "corpus.csv"
 
 
 def charger_hackernews(theme, nb=50):
-    """Interroge l'API Hacker News et renvoie une liste de Document."""
+    #Interroge l'API Hacker News et renvoie une liste de Document.
     url = "https://hn.algolia.com/api/v1/search?" + urllib.parse.urlencode(
         {"query": theme, "tags": "story", "hitsPerPage": nb})
     with urllib.request.urlopen(url) as reponse:
@@ -43,7 +44,7 @@ def charger_hackernews(theme, nb=50):
 
 
 def charger_arxiv(theme, nb=50):
-    """Interroge l'API Arxiv et renvoie une liste de Document."""
+    #Interroge l'API Arxiv et renvoie une liste de Document.
     url = "http://export.arxiv.org/api/query?" + urllib.parse.urlencode(
         {"search_query": "all:" + theme, "start": 0, "max_results": nb})
     with urllib.request.urlopen(url) as reponse:
@@ -57,23 +58,33 @@ def charger_arxiv(theme, nb=50):
 
     documents = []
     for entree in entrees:
-        # 'author' est un dict s'il y a un seul auteur, une liste sinon.
-        # On garde le premier auteur comme auteur principal.
-        auteurs = entree["author"]
+        # Recuperation des auteurs
+        auteurs = entree.get("author",[])
         if isinstance(auteurs, dict):
             auteurs = [auteurs]
-        documents.append(Document(
+        # Premier auteur trouvé est l'auteur principal
+        auteur_p = auteurs[0]["name"] if auteurs else "inconnu"
+
+         # Création du document Arxiv
+        doc = ArxivDocument(
             titre=entree["title"].replace("\n", " ").strip(),
-            auteur=auteurs[0]["name"],
+            auteur=auteur_p,
             date=Document.parse_date(entree.get("published")),
             url=entree["id"],
             texte=entree["summary"].replace("\n", " ").strip(),
-            origine="arxiv"))
+            origine="arxiv"
+        )
+        # Ajout des autres auteurs comme co-auteurs
+        for aut in auteurs[1:]:
+            doc.ajouterCoAuteur(aut["name"])
+
+        documents.append(doc)
+
     return documents
 
 
 def construire_corpus():
-    """Charge le corpus depuis le disque s'il existe, sinon interroge les API."""
+    #Charge le corpus depuis le disque s'il existe, sinon interroge les API.
     corpus = Corpus(f"Corpus {THEME}")
     if os.path.exists(FICHIER_CORPUS):
         corpus.load(FICHIER_CORPUS)
@@ -89,7 +100,7 @@ def construire_corpus():
 
 
 def statistiques_auteur(corpus):
-    """Demande un nom d'auteur et affiche ses statistiques (TD4, question 2.4)."""
+    #Demande un nom d'auteur et affiche ses statistiques (TD4, question 2.4).
     nom = input("Nom d'un auteur (laisser vide pour passer) : ").strip()
     if not nom:
         return
@@ -112,3 +123,71 @@ if __name__ == "__main__":
 
     print()
     statistiques_auteur(corpus)
+    
+    # Création du corpus
+    corpus = Corpus("Mon corpus")
+
+    # Création d'un document Hacker News
+    doc1 = HackerNewsDocument(
+        "Les nouveautés en intelligence artificielle",
+        "Alice",
+        None,
+        "https://example.com/hn",
+        "Un article sur les avancées de l'intelligence artificielle.",
+        "hackernews"
+    )
+
+    # Création d'un document Arxiv
+    doc2 = ArxivDocument(
+        "Machine Learning Research",
+        "Bob",
+        None,
+        "https://example.com/arxiv",
+        "Une étude sur les méthodes de machine learning.",
+        "arxiv"
+    )
+    # Ajout de co-auteurs au document Arxiv
+    doc2.ajouterCoAuteur("Charlie")
+    doc2.ajouterCoAuteur("David")
+
+    # Ajout des documents au corpus
+    id1 = corpus.add(doc1)
+    id2 = corpus.add(doc2)
+
+    # Affichage du résultat
+    print(corpus)
+    print("Nombre de documents :", corpus.getNdoc())
+    print("Nombre d'auteurs :", corpus.getNaut())
+
+    # Affichage des documents
+    corpus.afficher_par_titre()
+
+    # Affichage des co-auteurs
+    doc2.afficherCoAuteur()
+
+    # verification du singleton
+    corpus1 = Corpus("Mon corpus")
+    corpus2 = Corpus("Un autre corpus")
+
+    print(corpus1 is corpus2)
+
+    # test du factory
+    doc1 = DocumentGenerator.factory(
+        "hackernews",
+        titre="Actualités IA",
+        auteur="Alice",
+        origine="hackernews"
+    )
+
+    doc2 = DocumentGenerator.factory(
+        "arxiv",
+        titre="Recherche en machine learning",
+        auteur="Bob",
+        origine="arxiv"
+    )
+
+    print(doc1)
+    print(doc2)
+
+    print(doc1.getType())
+    print(doc2.getType())

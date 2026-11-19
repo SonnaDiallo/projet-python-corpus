@@ -45,7 +45,7 @@ python main.py
 
 ## utilisation de l'IA
 
-Quelques briques de codes de notre projet ont étés assistées par l'IA(Claude), face aux burgs et difficultés rencontrés.
+Quelques briques de codes, notamment l'adaptation du TD3 corrigé a notre projet a été assistée par l'IA(Claude), face aux burgs.
 
 ## Auteurs
 
